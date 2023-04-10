@@ -1,26 +1,9 @@
 // tr3b's Stealth Ghillie
 // 1.1
 
-GhillieSuit = [
-    'U_B_GhillieSuit',
-    'U_O_GhillieSuit',
-    'U_I_GhillieSuit',
-    'U_B_FullGhillie_lsh',
-    'U_B_FullGhillie_sard',
-    'U_B_FullGhillie_ard',
-    'U_O_FullGhillie_lsh',
-    'U_O_FullGhillie_sard',
-    'U_O_FullGhillie_ard',
-    'U_I_FullGhillie_lsh',
-    'U_I_FullGhillie_sard',
-    'U_I_FullGhillie_ard',
-    'U_B_T_Sniper_F',
-    'U_B_T_FullGhillie_tna_F',
-    'U_O_T_Sniper_F',
-    'U_O_T_FullGhillie_tna_F'
-    ];
+if (!isServer) exitwith {};
 
-// Tresholds
+// Coefficients
 
 STAND = 5;
 CROUCH = 0.4;
@@ -37,53 +20,58 @@ NIGHT = 0.5;
 CoeffCalc = false;
 develop = false;
 
-SG_fn_Coeff = {
-	while {CoeffCalc} do {
-		ForestCoeff = position player getEnvSoundController "forest";
-		TreeCoeff = position player getEnvSoundController "trees";
-		MeadowCoeff = position player getEnvSoundController "meadows";
-		NightCoeff = position player getEnvSoundController "night";
-
-		PlayerSpeed = speed player;
-		PlayerStance = stance player;
-
-		if (PlayerStance == 'STAND') then { COEFF = Stand; };
-		if (PlayerStance == 'CROUCH') then { COEFF = Crouch; };
-		if (PlayerStance == 'PRONE') then { COEFF = Prone; };
-
-		if (PlayerSpeed > 0) then { COEFF = COEFF * (PlayerSpeed/15); };
-		if (PlayerSpeed == 0) then { COEFF = COEFF * 0.1; };
-
-		if (ForestCoeff >= 0.1) then { COEFF = COEFF * (Forest/ForestCoeff); };
-		if (TreeCoeff >= 0.1) then { COEFF = COEFF * (Tree/TreeCoeff); };
-		if (MeadowCoeff >= 0.1) then { COEFF = COEFF * (Meadow/MeadowCoeff); };
-
-		if (NightCoeff == 1) then { COEFF = COEFF * NIGHT; };
-
-		player setUnitTrait ['camouflageCoef',COEFF];
-
-		if(develop) then {
-			hint parseText format ['Stealth Ghillie: %1%8Stance: %2%8Speed: %3%8Forest: %4%8Tree: %5%8Meadow: %6%8SG VALUE: %7', CoeffCalc, PlayerStance, PlayerSpeed, ForestCoeff, TreeCoeff, MeadowCoeff, COEFF, '<br />'];
-		}
-	};
+// if PFH is already running, stop the previous one
+if (!isnil QGVAR(SGHILLIE)) then {
+    GVAR(SGHILLIE) call CBA_fnc_removePerFrameHandler;
 };
 
-_StealthGhillie = createTrigger ["EmptyDetector", [0,0,0]];
-_StealthGhillie setTriggerActivation ["ANY","PRESENT",true];
-_StealthGhillie setTriggerStatements ["((uniform player) in GhillieSuit && !CoeffCalc)",
-"
-CoeffCalc = true;
-_0 = [] spawn SG_fn_Coeff;
-"
-,""];
+GVAR(SGHILLIE) = [{
+    {
+        if(alive _x and (isText (_x >> "displayName") && {(_x >> "displayName") find "ghillie" != -1})) then {
+            forestCoeff = position _x getEnvSoundController "forest";
+            TreeCoeff = position _x getEnvSoundController "trees";
+            MeadowCoeff = position _x getEnvSoundController "meadows";
+            NightCoeff = position _x getEnvSoundController "night";
 
-_StealthGhillie = createTrigger ["EmptyDetector", [0,0,0]];
-_StealthGhillie setTriggerActivation ["ANY","PRESENT",true];
-_StealthGhillie setTriggerStatements ["(!((uniform player) in GhillieSuit) && CoeffCalc)",
-"
-CoeffCalc = false;
-"
-,""];
+            playerspeed = speed _x;
+            playerstance = stance _x;
 
-//TODO
-// Issue:
+            if (playerstance == 'STAND') then {
+                COEFF = Stand;
+            };
+            if (playerstance == 'CROUCH') then {
+                COEFF = Crouch;
+            };
+            if (playerstance == 'PRONE') then {
+                COEFF = Prone;
+            };
+
+            if (playerspeed > 0) then {
+                COEFF = COEFF * (playerspeed/15);
+            };
+            if (playerspeed == 0) then {
+                COEFF = COEFF * 0.1;
+            };
+
+            if (forestCoeff >= 0.1) then {
+                COEFF = COEFF * (FOREST/forestCoeff);
+            };
+            if (TreeCoeff >= 0.1) then {
+                COEFF = COEFF * (TREE/TreeCoeff);
+            };
+            if (MeadowCoeff >= 0.1) then {
+                COEFF = COEFF * (MEADOW/MeadowCoeff);
+            };
+
+            if (NightCoeff == 1) then {
+                COEFF = COEFF * NIGHT;
+            };
+
+            _x setUnitTrait ['camouflageCoef', COEFF];
+
+            if (develop) then {
+                hint parsetext format ['Stealth Ghillie: %1%8stance: %2%8speed: %3%8forest: %4%8Tree: %5%8Meadow: %6%8SG VALUE: %7', CoeffCalc, playerstance, playerspeed, forestCoeff, TreeCoeff, MeadowCoeff, COEFF, '<br />'];
+            }
+        }
+    } forEach allPlayers - entities "HeadlessClient_F"
+}] call CBA_fnc_addPerFrameHandler
